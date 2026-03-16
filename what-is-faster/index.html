@@ -487,6 +487,21 @@
     @keyframes cpFall {
       to { transform: translateY(110vh) rotate(900deg); opacity: 0; }
     }
+
+    @media (max-width: 540px) {
+      .selection-area {
+        flex-direction: column;
+        align-items: center;
+      }
+      .player-slot {
+        width: 100%;
+        max-width: 100%;
+      }
+      .vs-badge {
+        align-self: center;
+        margin: 4px 0;
+      }
+    }
   </style>
 </head>
 <body>
