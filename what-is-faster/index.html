@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WHAT IS FASTER? 🏆</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan: #00ffff;
+      --magenta: #ff00ff;
+      --yellow: #ffff00;
+      --green: #00ff41;
+      --orange: #ff6600;
+      --red: #ff2244;
+      --bg: #060608;
+      --track-bg: #080810;
+      --border: #223355;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--cyan);
+      font-family: 'Press Start 2P', monospace;
+      overflow-x: hidden;
+    }
+
+    /* ──────────────────────────── SCANLINES ──────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.12) 2px,
+        rgba(0, 0, 0, 0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ──────────────────────────── SCREENS ──────────────────────────── */
+    .screen { display: none; }
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 12px 16px 24px;
+    }
+
+    /* ──────────────────────────── SHARED UI ──────────────────────────── */
+    .hiscore-bar {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 860px;
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      margin-bottom: 10px;
+      background: rgba(0,0,30,0.6);
+      font-size: clamp(5px, 1.4vw, 8px);
+      color: var(--green);
+      text-shadow: 0 0 6px var(--green);
+    }
+
+    .neon-title {
+      font-size: clamp(15px, 4.5vw, 38px);
+      color: var(--yellow);
+      text-shadow: 0 0 8px var(--yellow), 0 0 20px var(--yellow), 0 0 40px #ff8800;
+      text-align: center;
+      margin: 16px 0 6px;
+      letter-spacing: 2px;
+      animation: titlePulse 2.5s ease-in-out infinite alternate;
+    }
+    @keyframes titlePulse {
+      from { text-shadow: 0 0 8px var(--yellow), 0 0 18px var(--yellow); }
+      to   { text-shadow: 0 0 16px var(--yellow), 0 0 36px var(--yellow), 0 0 60px #ff8800; }
+    }
+
+    .subtitle {
+      font-size: clamp(7px, 1.8vw, 11px);
+      color: var(--magenta);
+      text-shadow: 0 0 8px var(--magenta);
+      margin-bottom: 20px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    /* ──────────────────────────── SELECTION SCREEN ──────────────────────────── */
+    .selection-area {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 860px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .player-slot {
+      flex: 1;
+      min-width: 200px;
+      max-width: 360px;
+      border: 3px solid var(--cyan);
+      padding: 14px;
+      background: rgba(0,255,255,0.04);
+      box-shadow: 0 0 12px rgba(0,255,255,0.25), inset 0 0 30px rgba(0,0,0,0.5);
+    }
+    .player-slot.p2 {
+      border-color: var(--magenta);
+      box-shadow: 0 0 12px rgba(255,0,255,0.25), inset 0 0 30px rgba(0,0,0,0.5);
+    }
+
+    .player-label {
+      display: block;
+      font-size: clamp(7px, 1.6vw, 10px);
+      color: var(--magenta);
+      text-shadow: 0 0 6px var(--magenta);
+      margin-bottom: 10px;
+    }
+    .p2 .player-label { color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
+
+    .sprite-preview {
+      display: block;
+      font-size: clamp(36px, 10vw, 60px);
+      text-align: center;
+      margin: 10px 0;
+      min-height: 64px;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,0.3));
+      transition: transform 0.2s ease;
+    }
+    .sprite-preview:hover { transform: scale(1.1); }
+
+    .speed-info {
+      font-size: clamp(6px, 1.4vw, 8px);
+      color: #444;
+      text-align: center;
+      margin: 6px 0 10px;
+      min-height: 18px;
+      letter-spacing: 1px;
+    }
+
+    select {
+      width: 100%;
+      background: #05050f;
+      color: var(--cyan);
+      border: 2px solid var(--cyan);
+      padding: 8px 6px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(6px, 1.4vw, 8px);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      line-height: 1.6;
+    }
+    .p2 select { border-color: var(--magenta); color: var(--magenta); }
+    select:focus { box-shadow: 0 0 10px currentColor; }
+
+    .vs-badge {
+      font-size: clamp(22px, 6vw, 44px);
+      color: var(--orange);
+      text-shadow: 0 0 14px var(--orange), 0 0 28px var(--orange);
+      align-self: center;
+      flex-shrink: 0;
+      animation: vsPulse 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes vsPulse {
+      from { transform: scale(1);   text-shadow: 0 0 10px var(--orange); }
+      to   { transform: scale(1.15); text-shadow: 0 0 24px var(--orange), 0 0 40px #ff4400; }
+    }
+
+    .btn-race {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 3.5vw, 24px);
+      background: var(--yellow);
+      color: #000;
+      border: none;
+      padding: 14px 44px;
+      cursor: pointer;
+      letter-spacing: 4px;
+      box-shadow: 5px 5px 0 #887700, 0 0 24px rgba(255,255,0,0.45);
+      transition: transform 0.08s, box-shadow 0.08s;
+      animation: btnPulse 1.2s step-end infinite;
+    }
+    @keyframes btnPulse {
+      0%, 79%  { background: var(--yellow); }
+      80%, 100% { background: #ffe000; }
+    }
+    .btn-race:hover  { transform: scale(1.06); box-shadow: 7px 7px 0 #887700, 0 0 36px rgba(255,255,0,0.7); }
+    .btn-race:active { transform: translate(5px,5px); box-shadow: 0 0 8px rgba(255,255,0,0.4); }
+
+    .insert-coin {
+      font-size: clamp(7px, 1.8vw, 10px);
+      color: var(--magenta);
+      text-shadow: 0 0 6px var(--magenta);
+      animation: blink 1s step-end infinite;
+      margin-top: 20px;
+    }
+    @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+    .items-marquee {
+      font-size: clamp(5px, 1.2vw, 7px);
+      color: #334;
+      text-align: center;
+      margin-top: 10px;
+      max-width: 860px;
+      line-height: 2.2;
+    }
+
+    /* ──────────────────────────── RACE SCREEN ──────────────────────────── */
+    .race-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 860px;
+      margin-bottom: 6px;
+      padding: 0 4px;
+    }
+    .racer-hud {
+      font-size: clamp(6px, 1.4vw, 9px);
+      line-height: 2;
+    }
+    .racer-hud .spd { color: var(--green); text-shadow: 0 0 5px var(--green); }
+
+    .phase-indicator {
+      font-size: clamp(6px, 1.4vw, 8px);
+      color: var(--orange);
+      text-shadow: 0 0 6px var(--orange);
+      text-align: center;
+      min-height: 14px;
+      align-self: center;
+    }
+
+    /* Track */
+    .track-wrap {
+      width: 100%;
+      max-width: 860px;
+      border: 3px solid var(--border);
+      background: var(--track-bg);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(0,60,180,0.25), inset 0 0 40px rgba(0,0,0,0.7);
+    }
+
+    /* CRT vignette on track */
+    .track-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .track-lane {
+      height: 90px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .track-lane:last-of-type { border-bottom: none; }
+
+    /* Dashed lane ground line */
+    .lane-ground {
+      position: absolute;
+      bottom: 18px;
+      left: 0; right: 0;
+      height: 2px;
+      background: repeating-linear-gradient(
+        90deg,
+        rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 20px,
+        transparent 20px, transparent 40px
+      );
+    }
+
+    /* Distance markers */
+    .dist-markers {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent, transparent 99px,
+        rgba(255,255,255,0.04) 99px, rgba(255,255,255,0.04) 100px
+      );
+      pointer-events: none;
+    }
+
+    .start-post {
+      position: absolute;
+      left: 60px;
+      top: 0; bottom: 0;
+      width: 4px;
+      background: white;
+      box-shadow: 0 0 8px white;
+      z-index: 5;
+    }
+    .start-label-text {
+      position: absolute;
+      top: 50%;
+      left: -22px;
+      transform: translateY(-50%) rotate(-90deg);
+      font-size: 5px;
+      color: white;
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+
+    /* Checkered finish */
+    .finish-post {
+      position: absolute;
+      right: 20px;
+      top: 0; bottom: 0;
+      width: 22px;
+      background-image: repeating-conic-gradient(#fff 0% 25%, #111 0% 50%);
+      background-size: 11px 11px;
+      box-shadow: 0 0 16px rgba(255,255,180,0.5);
+      z-index: 5;
+    }
+    .finish-label-text {
+      position: absolute;
+      top: 50%;
+      right: -28px;
+      transform: translateY(-50%) rotate(90deg);
+      font-size: 5px;
+      color: var(--yellow);
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+
+    /* Racer sprites */
+    .racer {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 10;
+      will-change: left;
+      transition: filter 0.1s;
+    }
+
+    .racer-emoji { font-size: clamp(26px, 6vw, 42px); line-height: 1; display: block; }
+    .racer-label {
+      font-size: 5px;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap;
+      text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+      margin-top: 2px;
+    }
+
+    .lead-glow { filter: drop-shadow(0 0 8px gold) drop-shadow(0 0 4px gold) !important; }
+
+    /* Countdown overlay */
+    #countdown-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.82);
+      z-index: 200;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .countdown-num {
+      font-size: clamp(60px, 18vw, 130px);
+      color: var(--yellow);
+      text-shadow: 0 0 20px var(--yellow), 0 0 50px var(--yellow);
+      animation: cdPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes cdPop {
+      from { transform: scale(2.2); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .countdown-sub {
+      font-size: clamp(8px, 2vw, 12px);
+      color: var(--cyan);
+      text-shadow: 0 0 8px var(--cyan);
+    }
+
+    /* ──────────────────────────── WINNER SCREEN ──────────────────────────── */
+    #screen-winner {
+      background: radial-gradient(ellipse at 50% 40%, #1a0d00, var(--bg));
+    }
+
+    .winner-title {
+      font-size: clamp(22px, 7vw, 52px);
+      color: var(--yellow);
+      text-shadow: 0 0 16px var(--yellow), 0 0 36px var(--yellow), 0 0 70px #ff8800;
+      animation: wFlash 0.55s step-end infinite;
+      margin: 20px 0 14px;
+      text-align: center;
+    }
+    @keyframes wFlash { 0%,65%{opacity:1} 66%,100%{opacity:0.55} }
+
+    .medal-icon {
+      display: block;
+      font-size: clamp(64px, 16vw, 110px);
+      text-align: center;
+      animation: medalDrop 0.9s cubic-bezier(0.22, 1.8, 0.36, 1) forwards;
+    }
+    @keyframes medalDrop {
+      from { transform: translateY(-220px) rotate(-200deg) scale(0.5); opacity: 0; }
+      to   { transform: translateY(0)      rotate(0deg)   scale(1);   opacity: 1; }
+    }
+
+    .winner-emoji-big {
+      display: block;
+      font-size: clamp(44px, 11vw, 80px);
+      text-align: center;
+      animation: winnerBob 0.7s ease-in-out infinite alternate;
+      margin: 10px 0 6px;
+    }
+    @keyframes winnerBob {
+      from { transform: scale(1) rotate(-4deg); }
+      to   { transform: scale(1.1) rotate(4deg); }
+    }
+
+    .winner-name-big {
+      font-size: clamp(14px, 4vw, 30px);
+      color: white;
+      text-shadow: 0 0 12px var(--yellow);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .winner-speed-display {
+      font-size: clamp(7px, 1.6vw, 10px);
+      color: var(--green);
+      text-shadow: 0 0 6px var(--green);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .divider {
+      width: 100%;
+      max-width: 400px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 16px 0;
+    }
+
+    .loser-section { text-align: center; }
+    .loser-also { font-size: clamp(6px, 1.4vw, 8px); color: #555; margin-bottom: 8px; }
+    .loser-medal-icon { font-size: clamp(28px, 7vw, 44px); display: block; opacity: 0.65; }
+    .loser-name-text { font-size: clamp(7px, 1.6vw, 10px); color: #666; margin-top: 6px; }
+
+    .btn-again {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(9px, 2.2vw, 15px);
+      background: transparent;
+      color: var(--cyan);
+      border: 3px solid var(--cyan);
+      padding: 12px 28px;
+      cursor: pointer;
+      margin-top: 28px;
+      box-shadow: 0 0 10px rgba(0,255,255,0.3);
+      transition: all 0.15s;
+      letter-spacing: 2px;
+    }
+    .btn-again:hover {
+      background: rgba(0,255,255,0.1);
+      box-shadow: 0 0 22px rgba(0,255,255,0.6);
+    }
+
+    /* ──────────────────────────── CONFETTI ──────────────────────────── */
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 500;
+    }
+    .cp {
+      position: absolute;
+      top: -10px;
+      animation: cpFall linear forwards;
+    }
+    @keyframes cpFall {
+      to { transform: translateY(110vh) rotate(900deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════ SCREEN 1: SELECTION ══════════════════════ -->
+<div class="screen active" id="screen-select">
+
+  <div class="hiscore-bar">
+    <span>HI-SCORE&nbsp;&nbsp;999999</span>
+    <span>RACES&nbsp;&nbsp;0</span>
+    <span>© 1994 FAST GAMES INC.</span>
+  </div>
+
+  <div class="neon-title">WHAT IS FASTER?</div>
+  <div class="subtitle">⭐ SELECT YOUR RACERS AND FIND OUT ⭐</div>
+
+  <div class="selection-area">
+
+    <div class="player-slot">
+      <span class="player-label">▶ PLAYER 1</span>
+      <span class="sprite-preview" id="preview1">🐌</span>
+      <div class="speed-info" id="info1">TOP SPEED: ???</div>
+      <select id="select1" onchange="updatePreview(1)"></select>
+    </div>
+
+    <div class="vs-badge">VS</div>
+
+    <div class="player-slot p2">
+      <span class="player-label">▶ PLAYER 2</span>
+      <span class="sprite-preview" id="preview2">🐆</span>
+      <div class="speed-info" id="info2">TOP SPEED: ???</div>
+      <select id="select2" onchange="updatePreview(2)"></select>
+    </div>
+
+  </div>
+
+  <button class="btn-race" onclick="startRace()">▶ RACE! ◀</button>
+
+  <div class="items-marquee">
+    🐌 SNAIL &nbsp;·&nbsp; 🐢 TORTOISE &nbsp;·&nbsp; 🦥 SLOTH &nbsp;·&nbsp; 🏃 HUMAN RUN &nbsp;·&nbsp;
+    🐴 HORSE &nbsp;·&nbsp; 🐆 CHEETAH &nbsp;·&nbsp; 🚗 CAR &nbsp;·&nbsp; 🚄 BULLET TRAIN &nbsp;·&nbsp;
+    ✈️ JET &nbsp;·&nbsp; 🚀 ROCKET &nbsp;·&nbsp; ☄️ METEOR &nbsp;·&nbsp; 💡 SPEED OF LIGHT &nbsp;·&nbsp;
+    AND 45+ MORE THINGS TO RACE!
+  </div>
+
+  <div class="insert-coin" style="margin-top:18px;">⭐ INSERT COIN TO PLAY ⭐</div>
+
+</div>
+
+<!-- ══════════════════════ SCREEN 2: RACE ══════════════════════ -->
+<div class="screen" id="screen-race">
+
+  <div class="hiscore-bar">
+    <span>RACE IN PROGRESS</span>
+    <span id="race-hud-p1">P1: ---</span>
+    <span id="race-hud-p2">P2: ---</span>
+  </div>
+
+  <div class="neon-title" style="font-size:clamp(12px,2.8vw,22px); margin:8px 0;">WHAT IS FASTER?</div>
+
+  <div class="race-hud">
+    <div class="racer-hud">
+      <span id="hud1name" style="color:var(--cyan);text-shadow:0 0 5px var(--cyan);">---</span><br>
+      <span class="spd" id="hud1speed">0 MPH</span>
+    </div>
+    <div class="phase-indicator" id="phase-ind">GET READY...</div>
+    <div class="racer-hud" style="text-align:right;">
+      <span id="hud2name" style="color:var(--magenta);text-shadow:0 0 5px var(--magenta);">---</span><br>
+      <span class="spd" id="hud2speed">0 MPH</span>
+    </div>
+  </div>
+
+  <div class="track-wrap" id="track">
+    <div class="dist-markers"></div>
+
+    <!-- Start post spans full height -->
+    <div class="start-post">
+      <span class="start-label-text">START</span>
+    </div>
+
+    <!-- Finish post spans full height -->
+    <div class="finish-post">
+      <span class="finish-label-text">FINISH</span>
+    </div>
+
+    <!-- Lane 1 -->
+    <div class="track-lane" id="lane1">
+      <div class="lane-ground"></div>
+      <div class="racer" id="racer1" style="left:60px; bottom:16px; top:auto;">
+        <span class="racer-emoji" id="r1emoji">🐌</span>
+        <span class="racer-label" id="r1label">SNAIL</span>
+      </div>
+    </div>
+
+    <!-- Separator -->
+    <div style="height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);"></div>
+
+    <!-- Lane 2 -->
+    <div class="track-lane" id="lane2">
+      <div class="lane-ground"></div>
+      <div class="racer" id="racer2" style="left:60px; bottom:16px; top:auto;">
+        <span class="racer-emoji" id="r2emoji">🐆</span>
+        <span class="racer-label" id="r2label">CHEETAH</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Countdown overlay -->
+  <div id="countdown-overlay">
+    <div class="countdown-sub" id="cd-versus"></div>
+    <div class="countdown-num" id="cd-num">3</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════ SCREEN 3: WINNER ══════════════════════ -->
+<div class="screen" id="screen-winner">
+
+  <div class="hiscore-bar">
+    <span>RACE COMPLETE!</span>
+    <span>WINNER ANNOUNCED!</span>
+    <span>© 1994 FAST GAMES INC.</span>
+  </div>
+
+  <div class="winner-title">🏆 WINNER! 🏆</div>
+
+  <div class="medal-icon" id="winner-medal">🥇</div>
+  <div class="winner-emoji-big" id="winner-emoji-big">🐆</div>
+  <div class="winner-name-big" id="winner-name-big">CHEETAH</div>
+  <div class="winner-speed-display" id="winner-speed-display">TOP SPEED: 75 MPH</div>
+
+  <div class="divider"></div>
+
+  <div class="loser-section">
+    <div class="loser-also">ALSO COMPETED:</div>
+    <span class="loser-medal-icon" id="loser-medal">🥈</span>
+    <div class="loser-name-text" id="loser-name-text">SNAIL (0.03 MPH)</div>
+  </div>
+
+  <button class="btn-again" onclick="resetGame()">▶ PLAY AGAIN?</button>
+
+  <div class="insert-coin" style="color:var(--yellow);text-shadow:0 0 8px var(--yellow);margin-top:20px;">
+    ⭐ CONGRATULATIONS ⭐
+  </div>
+
+</div>
+
+<!-- Confetti layer -->
+<div id="confetti"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ITEM DATABASE  (sorted by real-world speed)
+   Easter eggs: cow beats everyone, michael beats cow.
+   Their listed speeds are decoys.
+═══════════════════════════════════════════════════════════ */
+const ITEMS = [
+  // ── Tiny creatures ──
+  { id:'caterpillar',  name:'Caterpillar',       emoji:'🐛', speed:0.01,        display:'0.01 MPH' },
+  { id:'snail',        name:'Snail',              emoji:'🐌', speed:0.03,        display:'0.03 MPH' },
+  { id:'worm',         name:'Earthworm',          emoji:'🪱', speed:0.03,        display:'0.03 MPH' },
+  { id:'sloth',        name:'Sloth',              emoji:'🦥', speed:0.17,        display:'0.17 MPH' },
+  { id:'tortoise',     name:'Tortoise',           emoji:'🐢', speed:0.3,         display:'0.3 MPH'  },
+  // ── Slow ──
+  { id:'snowflake',    name:'Snowflake',          emoji:'❄️', speed:2,           display:'2 MPH'    },
+  { id:'walk',         name:'Human Walk',         emoji:'🚶', speed:3.1,         display:'3 MPH'    },
+  { id:'rowboat',      name:'Rowboat',            emoji:'🚣', speed:5,           display:'5 MPH'    },
+  { id:'hedgehog',     name:'Hedgehog',           emoji:'🦔', speed:4,           display:'4 MPH'    },
+  { id:'pigeon',       name:'Pigeon',             emoji:'🐦', speed:6,           display:'6 MPH'    },
+  { id:'rooster',      name:'Rooster',            emoji:'🐓', speed:9,           display:'9 MPH'    },
+  // ── Medium ──
+  { id:'bee',          name:'Bumblebee',          emoji:'🐝', speed:12,          display:'12 MPH'   },
+  { id:'run',          name:'Human Run',          emoji:'🏃', speed:12,          display:'12 MPH'   },
+  { id:'bicycle',      name:'Bicycle',            emoji:'🚴', speed:15,          display:'15 MPH'   },
+  { id:'escooter',     name:'Electric Scooter',   emoji:'🛴', speed:15,          display:'15 MPH'   },
+  { id:'skateboard',   name:'Skateboard',         emoji:'🛹', speed:20,          display:'20 MPH'   },
+  { id:'elephant',     name:'Elephant',           emoji:'🐘', speed:25,          display:'25 MPH'   },
+  { id:'bolt',         name:'Usain Bolt',         emoji:'⚡', speed:28,          display:'28 MPH'   },
+  { id:'cat',          name:'House Cat',          emoji:'🐈', speed:30,          display:'30 MPH'   },
+  { id:'bear',         name:'Bear',               emoji:'🐻', speed:35,          display:'35 MPH'   },
+  { id:'rabbit',       name:'Jackrabbit',         emoji:'🐇', speed:35,          display:'35 MPH'   },
+  { id:'dragonfly',    name:'Dragonfly',          emoji:'🦗', speed:36,          display:'36 MPH'   },
+  { id:'dolphin',      name:'Dolphin',            emoji:'🐬', speed:37,          display:'37 MPH'   },
+  { id:'wolf',         name:'Wolf',               emoji:'🐺', speed:40,          display:'40 MPH'   },
+  { id:'zebra',        name:'Zebra',              emoji:'🦓', speed:40,          display:'40 MPH'   },
+  { id:'kangaroo',     name:'Kangaroo',           emoji:'🦘', speed:44,          display:'44 MPH'   },
+  { id:'dog',          name:'Greyhound',          emoji:'🐕', speed:45,          display:'45 MPH'   },
+  { id:'fox',          name:'Fox',                emoji:'🦊', speed:45,          display:'45 MPH'   },
+  { id:'ostrich',      name:'Ostrich',            emoji:'🦤', speed:45,          display:'45 MPH'   },
+  { id:'lion',         name:'Lion',               emoji:'🦁', speed:50,          display:'50 MPH'   },
+  { id:'horse',        name:'Horse (Gallop)',      emoji:'🐴', speed:55,          display:'55 MPH'   },
+  { id:'sailfish',     name:'Sailfish',           emoji:'🐟', speed:68,          display:'68 MPH'   },
+  { id:'cheetah',      name:'Cheetah',            emoji:'🐆', speed:75,          display:'75 MPH'   },
+  { id:'hummingbird',  name:'Hummingbird',        emoji:'🦜', speed:60,          display:'60 MPH'   },
+  // ── Fast ──
+  { id:'skier',        name:'Downhill Skier',     emoji:'⛷️', speed:95,          display:'95 MPH'   },
+  { id:'train',        name:'Train',              emoji:'🚂', speed:100,         display:'100 MPH'  },
+  { id:'car',          name:'Car',                emoji:'🚗', speed:120,         display:'120 MPH'  },
+  { id:'speedboat',    name:'Speedboat',          emoji:'🚤', speed:120,         display:'120 MPH'  },
+  { id:'eagle',        name:'Eagle Dive',         emoji:'🦅', speed:150,         display:'150 MPH'  },
+  { id:'hurricane',    name:'Hurricane Wind',     emoji:'🌀', speed:150,         display:'150 MPH'  },
+  { id:'rollercoaster',name:'Rollercoaster',      emoji:'🎢', speed:150,         display:'150 MPH'  },
+  { id:'motorcycle',   name:'Motorcycle',         emoji:'🏍️', speed:180,         display:'180 MPH'  },
+  { id:'helicopter',   name:'Helicopter',         emoji:'🚁', speed:200,         display:'200 MPH'  },
+  { id:'tornado',      name:'Tornado',            emoji:'🌪️', speed:200,         display:'200 MPH'  },
+  { id:'f1',           name:'Formula 1 Car',      emoji:'🏎️', speed:230,         display:'230 MPH'  },
+  { id:'falcon',       name:'Peregrine Falcon',   emoji:'🦅', speed:240,         display:'240 MPH'  },
+  { id:'bullettrain',  name:'Bullet Train',       emoji:'🚄', speed:320,         display:'320 MPH'  },
+  // ── Very fast ──
+  { id:'jet',          name:'Jet Plane',          emoji:'✈️', speed:575,         display:'575 MPH'  },
+  { id:'sound',        name:'Speed of Sound',     emoji:'💨', speed:767,         display:'767 MPH'  },
+  { id:'concorde',     name:'Concorde',           emoji:'🛩️', speed:1354,        display:'1,354 MPH'},
+  { id:'bullet',       name:'Bullet',             emoji:'🔫', speed:1700,        display:'1,700 MPH'},
+  { id:'sr71',         name:'SR-71 Blackbird',    emoji:'🛸', speed:2200,        display:'2,200 MPH'},
+  { id:'shuttle',      name:'Space Shuttle',      emoji:'🚀', speed:17500,       display:'17,500 MPH'},
+  { id:'rocket',       name:'Rocket (Escape)',    emoji:'🚀', speed:25000,       display:'25,000 MPH'},
+  { id:'meteor',       name:'Meteor',             emoji:'☄️', speed:160000,      display:'160,000 MPH'},
+  { id:'light',        name:'Speed of Light',     emoji:'💡', speed:670616629,   display:'670,616,629 MPH'},
+  // ── EASTER EGGS (listed speeds are decoys) ──
+  { id:'cow',     name:'Cow',     emoji:'🐄', speed:25,  display:'25 MPH',  easterEgg:'cow'     },
+  { id:'michael', name:'Michael', emoji:'👦', speed:5,   display:'5 MPH',   easterEgg:'michael' },
+];
+
+// Sort alphabetically for the picker (easter eggs blend in naturally)
+const sorted = [...ITEMS].sort((a,b) => a.name.localeCompare(b.name));
+
+/* ───────────────────── populate selects ───────────────────── */
+function populateSelects() {
+  const s1 = document.getElementById('select1');
+  const s2 = document.getElementById('select2');
+  sorted.forEach(item => {
+    // No speed shown — keep the mystery until after the race
+    s1.add(new Option(`${item.emoji}  ${item.name}`, item.id));
+    s2.add(new Option(`${item.emoji}  ${item.name}`, item.id));
+  });
+  s1.value = 'snail';
+  s2.value = 'cheetah';
+  updatePreview(1);
+  updatePreview(2);
+}
+
+function getItem(id) { return ITEMS.find(i => i.id === id); }
+
+function updatePreview(player) {
+  const sel = document.getElementById(`select${player}`);
+  const item = getItem(sel.value);
+  document.getElementById(`preview${player}`).textContent = item.emoji;
+  document.getElementById(`info${player}`).textContent = 'TOP SPEED: ???';
+}
+
+/* ───────────────────── winner logic ───────────────────── */
+// The hierarchy: michael > cow > everything else (by real speed)
+function determineWinner(a, b) {
+  if (a.easterEgg === 'michael') return a;
+  if (b.easterEgg === 'michael') return b;
+  if (a.easterEgg === 'cow')     return a;
+  if (b.easterEgg === 'cow')     return b;
+  return a.speed >= b.speed ? a : b;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RACE ENGINE
+═══════════════════════════════════════════════════════════ */
+let raf = null;
+let rs  = null;   // race state
+
+function startRace() {
+  const item1 = getItem(document.getElementById('select1').value);
+  const item2 = getItem(document.getElementById('select2').value);
+
+  if (item1.id === item2.id) {
+    alert('Pick two DIFFERENT things to race!');
+    return;
+  }
+
+  // Wire up race screen labels
+  document.getElementById('r1emoji').textContent = item1.emoji;
+  document.getElementById('r1label').textContent = item1.name.toUpperCase();
+  document.getElementById('r2emoji').textContent = item2.emoji;
+  document.getElementById('r2label').textContent = item2.name.toUpperCase();
+  document.getElementById('hud1name').textContent = item1.name.toUpperCase();
+  document.getElementById('hud2name').textContent = item2.name.toUpperCase();
+  document.getElementById('hud1speed').textContent = item1.display;
+  document.getElementById('hud2speed').textContent = item2.display;
+  document.getElementById('race-hud-p1').textContent = `P1: ${item1.name.toUpperCase()}`;
+  document.getElementById('race-hud-p2').textContent = `P2: ${item2.name.toUpperCase()}`;
+  document.getElementById('cd-versus').textContent =
+    `${item1.emoji} ${item1.name}  VS  ${item2.name} ${item2.emoji}`;
+
+  showScreen('screen-race');
+  runCountdown(() => launchRace(item1, item2));
+}
+
+/* ─────────── countdown ─────────── */
+function runCountdown(cb) {
+  const overlay = document.getElementById('countdown-overlay');
+  const numEl   = document.getElementById('cd-num');
+  overlay.style.display = 'flex';
+
+  const steps = ['3', '2', '1', 'GO!'];
+  let i = 0;
+
+  function tick() {
+    const s = steps[i];
+    numEl.textContent = s;
+    numEl.style.animation = 'none';
+    void numEl.offsetWidth;
+    numEl.style.animation = 'cdPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards';
+
+    if (s === 'GO!') {
+      numEl.style.color = 'var(--green)';
+      numEl.style.textShadow = '0 0 20px var(--green), 0 0 50px var(--green)';
+    } else {
+      numEl.style.color = 'var(--yellow)';
+      numEl.style.textShadow = '0 0 20px var(--yellow), 0 0 50px var(--yellow)';
+    }
+
+    i++;
+    if (i < steps.length) {
+      setTimeout(tick, 750);
+    } else {
+      setTimeout(() => { overlay.style.display = 'none'; cb(); }, 450);
+    }
+  }
+  tick();
+}
+
+/* ─────────── divergence factor ─────────── */
+// Returns 0.0 (identical speeds / photo finish) → 1.0 (maximum gap, e.g. light vs snail)
+function calcDivergence(winner, loser) {
+  // Easter egg races always use max drama
+  if (winner.easterEgg || loser.easterEgg) return 1.0;
+  if (winner.speed <= loser.speed) return 0; // shouldn't happen, but guard
+  const ratio  = winner.speed / Math.max(loser.speed, 0.0001);
+  const logR   = Math.log10(ratio);
+  return Math.min(logR / 4, 1.0);  // saturates at ~10,000x speed difference
+}
+
+/* ─────────── launch race ─────────── */
+function launchRace(item1, item2) {
+  const track     = document.getElementById('track');
+  const trackW    = track.offsetWidth;
+  const START_X   = 60;
+  const FINISH_X  = trackW - 42;
+  const RACE_DIST = FINISH_X - START_X;
+
+  const BASE    = RACE_DIST / 220;  // px/frame — full track in ~3.7s at 60fps
+  const winner  = determineWinner(item1, item2);
+  const div     = calcDivergence(winner, winner.id === item1.id ? item2 : item1);
+
+  rs = {
+    item1, item2, winner, div,
+    r1: { x: START_X, speed: BASE },
+    r2: { x: START_X, speed: BASE },
+    r1IsWinner: (winner.id === item1.id),
+    START_X, FINISH_X, RACE_DIST, BASE,
+    phase: 1,
+    phase2StartX: null,
+    raceStartTime: performance.now(),
+    done: false,
+    lastTime: performance.now(),
+  };
+
+  setPhaseText('⚡ WARMING UP...');
+  raf = requestAnimationFrame(raceLoop);
+}
+
+/* ─────────── race loop ─────────── */
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeInQuad(t)  { return t * t; }
+
+function raceLoop(now) {
+  if (!rs || rs.done) return;
+
+  const rawDt = (now - rs.lastTime) / 16.667;
+  const dt    = Math.min(rawDt, 3);   // cap at 3× to handle tab-switch glitches
+  rs.lastTime = now;
+
+  const { r1, r2, START_X, FINISH_X, RACE_DIST, BASE, div, r1IsWinner, raceStartTime } = rs;
+  const maxX     = Math.max(r1.x, r2.x);
+  const progress = (maxX - START_X) / RACE_DIST;
+
+  /* ── PHASE 1: warm-up with smooth oscillating lead changes (first 50%) ── */
+  if (progress < 0.5) {
+    rs.phase = 1;
+    setPhaseText('⚡ WARMING UP...');
+
+    // Sine oscillations offset by ~126° so racers naturally trade the lead 2-3 times.
+    // Small random noise on top keeps it feeling organic.
+    const elapsed = (now - raceStartTime) / 900; // oscillation period ≈ 900ms
+    const SWING   = BASE * 0.65;
+    const NOISE   = BASE * 0.12;
+    r1.speed = Math.max(BASE * 0.18, BASE + Math.sin(elapsed)        * SWING + (Math.random() - 0.5) * NOISE);
+    r2.speed = Math.max(BASE * 0.18, BASE + Math.sin(elapsed + 2.2)  * SWING + (Math.random() - 0.5) * NOISE);
+
+  /* ── PHASE 2: true physics kick in (second 50%) ── */
+  } else {
+    if (rs.phase === 1) {
+      rs.phase = 2;
+      rs.phase2StartX = maxX;
+      setPhaseText('🔥 TRUE SPEED ENGAGED!');
+    }
+
+    // t: 0 at phase-2 start → 1 at finish line
+    const remaining = FINISH_X - rs.phase2StartX;
+    const covered   = maxX - rs.phase2StartX;
+    const t         = Math.min(covered / remaining, 1);
+    const eased     = easeInQuad(t);
+
+    // div=0 → nearly identical speeds (photo finish)
+    // div=1 → winner flies, loser nearly stops (e.g. light vs snail)
+    const winSpeed  = lerp(BASE, BASE * (1 + div * 3.2), eased);
+    const loseSpeed = lerp(BASE, BASE * Math.max(0.04, 1 - div * 0.96), eased);
+
+    r1.speed = r1IsWinner ? winSpeed : loseSpeed;
+    r2.speed = r1IsWinner ? loseSpeed : winSpeed;
+  }
+
+  r1.x += r1.speed * dt;
+  r2.x += r2.speed * dt;
+
+  // Update DOM
+  const el1 = document.getElementById('racer1');
+  const el2 = document.getElementById('racer2');
+  el1.style.left = Math.min(r1.x, FINISH_X + 30) + 'px';
+  el2.style.left = Math.min(r2.x, FINISH_X + 30) + 'px';
+
+  // Highlight leader
+  if (r1.x > r2.x) {
+    el1.classList.add('lead-glow');    el2.classList.remove('lead-glow');
+  } else {
+    el2.classList.add('lead-glow');    el1.classList.remove('lead-glow');
+  }
+
+  // Check finish
+  if (r1.x >= FINISH_X || r2.x >= FINISH_X) {
+    rs.done = true;
+    const winnerItem = r1.x >= FINISH_X ? rs.item1 : rs.item2;
+    const loserItem  = winnerItem.id === rs.item1.id ? rs.item2 : rs.item1;
+    setTimeout(() => showWinner(winnerItem, loserItem), 600);
+    return;
+  }
+
+  raf = requestAnimationFrame(raceLoop);
+}
+
+function setPhaseText(t) {
+  const el = document.getElementById('phase-ind');
+  if (el.textContent !== t) el.textContent = t;
+}
+
+/* ─────────── winner screen ─────────── */
+function showWinner(winner, loser) {
+  document.getElementById('winner-medal').textContent      = '🥇';
+  document.getElementById('winner-emoji-big').textContent  = winner.emoji;
+  document.getElementById('winner-name-big').textContent   = winner.name.toUpperCase();
+  document.getElementById('winner-speed-display').textContent = `TOP SPEED: ${winner.display}`;
+  document.getElementById('loser-medal').textContent       = '🥈';
+  document.getElementById('loser-name-text').textContent   = `${loser.name.toUpperCase()}  (${loser.display})`;
+
+  showScreen('screen-winner');
+  launchConfetti();
+}
+
+/* ─────────── confetti ─────────── */
+function launchConfetti() {
+  const box = document.getElementById('confetti');
+  box.innerHTML = '';
+  const colors = ['#ffff00','#00ffff','#ff00ff','#00ff41','#ff6600','#ffffff','#ff2244'];
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement('div');
+    p.className = 'cp';
+    const size = 6 + Math.random() * 10;
+    p.style.cssText = `
+      left: ${Math.random() * 100}vw;
+      width: ${size}px; height: ${size}px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+      animation-duration: ${2 + Math.random() * 3.5}s;
+      animation-delay: ${Math.random() * 1.5}s;
+      opacity: 1;
+    `;
+    box.appendChild(p);
+  }
+  setTimeout(() => { box.innerHTML = ''; }, 7000);
+}
+
+/* ─────────── navigation ─────────── */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function resetGame() {
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+  rs = null;
+  document.getElementById('racer1').style.left = '60px';
+  document.getElementById('racer2').style.left = '60px';
+  document.getElementById('racer1').classList.remove('lead-glow');
+  document.getElementById('racer2').classList.remove('lead-glow');
+  showScreen('screen-select');
+}
+
+/* ─────────── init ─────────── */
+populateSelects();
+</script>
+</body>
+</html>
